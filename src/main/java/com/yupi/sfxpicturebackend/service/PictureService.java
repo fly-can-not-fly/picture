@@ -3,6 +3,7 @@ package com.yupi.sfxpicturebackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yupi.sfxpicturebackend.model.dto.picture.PictureQueryRequest;
+import com.yupi.sfxpicturebackend.model.dto.picture.PictureReviewRequest;
 import com.yupi.sfxpicturebackend.model.dto.picture.PictureUploadRequest;
 import com.yupi.sfxpicturebackend.model.entity.Picture;
 import com.baomidou.mybatisplus.extension.service.IService;
@@ -24,6 +25,14 @@ public interface PictureService extends IService<Picture> {
      * @param picture
      */
     void validPicture(Picture picture);
+
+    /**
+     * 图片审核
+     *
+     * @param pictureReviewRequest
+     * @param loginUser
+     */
+    void doPictureReview(PictureReviewRequest pictureReviewRequest, User loginUser);
 
     /**
      * 上传图片
@@ -62,4 +71,6 @@ public interface PictureService extends IService<Picture> {
      * @return
      */
     QueryWrapper<Picture> getQueryWrapper(PictureQueryRequest pictureQueryRequest);
+
+    void fillReviewParams(Picture picture, User loginUser);
 }
