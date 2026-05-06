@@ -10,6 +10,7 @@ import com.yupi.sfxpicturebackend.exception.BusinessException;
 import com.yupi.sfxpicturebackend.exception.ErrorCode;
 import com.yupi.sfxpicturebackend.exception.ThrowUtils;
 import com.yupi.sfxpicturebackend.manager.FileManager;
+import com.yupi.sfxpicturebackend.manager.upload.PictureUploadTemplate;
 import com.yupi.sfxpicturebackend.mapper.PictureMapper;
 import com.yupi.sfxpicturebackend.model.dto.picture.PictureQueryRequest;
 import com.yupi.sfxpicturebackend.model.dto.picture.PictureReviewRequest;
@@ -41,11 +42,13 @@ import java.util.stream.Collectors;
 @Service
 public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         implements PictureService {
-    private final FileManager fileManager;
+    private final PictureUploadTemplate filePictureUpload;
+    private final PictureUploadTemplate urlPictureUpload;
     private final UserService userService;
 
-    public PictureServiceImpl(FileManager fileManager, UserService userService) {
-        this.fileManager = fileManager;
+    public PictureServiceImpl(PictureUploadTemplate filePictureUpload, PictureUploadTemplate urlPictureUpload, UserService userService) {
+        this.filePictureUpload = filePictureUpload;
+        this.urlPictureUpload = urlPictureUpload;
         this.userService = userService;
     }
 
@@ -68,7 +71,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
     }
 
     @Override
-    public PictureVO uploadPicture(MultipartFile multipartFile, PictureUploadRequest pictureUploadRequest, User loginUser) {
+    public PictureVO uploadPicture(Object inputSource, PictureUploadRequest pictureUploadRequest, User loginUser) {
         // 校验参数
         ThrowUtils.throwIf(loginUser == null, ErrorCode.NO_AUTH_ERROR);
         // 判断是新增还是删除
@@ -89,7 +92,15 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         // 上传图片，得到图片信息
         // 按照用户 id 划分目录
         String uploadPathPrefix = String.format("public/%s", loginUser.getId());
-        UploadPictureResult uploadPictureResult = fileManager.uploadPicture(multipartFile, uploadPathPrefix);
+        PictureUploadTemplate uploader = null;
+        if (inputSource instanceof MultipartFile) {
+            uploader = filePictureUpload;
+        } else if (inputSource instanceof String) {
+            uploader = urlPictureUpload;
+        } else {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "不支持的数据源");
+        }
+        UploadPictureResult uploadPictureResult = uploader.uploadPicture(inputSource, uploadPathPrefix);
         // 构造要入库的图片信息
         Picture picture = new Picture();
         picture.setUrl(uploadPictureResult.getUrl());

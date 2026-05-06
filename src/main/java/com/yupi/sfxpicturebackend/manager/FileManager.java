@@ -4,6 +4,7 @@ import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.RandomUtil;
+import cn.hutool.http.HttpUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.yupi.sfxpicturebackend.config.OssClientConfig;
@@ -22,6 +23,7 @@ import java.util.List;
 
 @Service
 @Slf4j
+@Deprecated
 public class FileManager {  
   
     @Resource
@@ -37,6 +39,7 @@ public class FileManager {
      * @return
      */
     public UploadPictureResult uploadPicture(MultipartFile multipartFile, String uploadPathPrefix) {
+
         // 校验图片
         validPicture(multipartFile);
         // 图片上传地址
@@ -76,6 +79,7 @@ public class FileManager {
             this.deleteTempFile(file);
         }
     }
+
 
     /**
      * 校验文件
