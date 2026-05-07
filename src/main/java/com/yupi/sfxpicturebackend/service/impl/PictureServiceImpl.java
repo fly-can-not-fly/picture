@@ -2,20 +2,22 @@ package com.yupi.sfxpicturebackend.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.ObjUtil;
+import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.yupi.sfxpicturebackend.exception.BusinessException;
 import com.yupi.sfxpicturebackend.exception.ErrorCode;
 import com.yupi.sfxpicturebackend.exception.ThrowUtils;
 import com.yupi.sfxpicturebackend.manager.FileManager;
 import com.yupi.sfxpicturebackend.manager.upload.PictureUploadTemplate;
 import com.yupi.sfxpicturebackend.mapper.PictureMapper;
-import com.yupi.sfxpicturebackend.model.dto.picture.PictureQueryRequest;
-import com.yupi.sfxpicturebackend.model.dto.picture.PictureReviewRequest;
-import com.yupi.sfxpicturebackend.model.dto.picture.PictureUploadRequest;
-import com.yupi.sfxpicturebackend.model.dto.picture.UploadPictureResult;
+import com.yupi.sfxpicturebackend.model.dto.picture.*;
 import com.yupi.sfxpicturebackend.model.entity.Picture;
 import com.yupi.sfxpicturebackend.model.entity.User;
 import com.yupi.sfxpicturebackend.model.enums.PictureReviewStatusEnum;
@@ -23,15 +25,19 @@ import com.yupi.sfxpicturebackend.model.vo.PictureVO;
 import com.yupi.sfxpicturebackend.model.vo.UserVO;
 import com.yupi.sfxpicturebackend.service.PictureService;
 import com.yupi.sfxpicturebackend.service.UserService;
+import io.swagger.models.auth.In;
+import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.io.IOException;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -40,6 +46,7 @@ import java.util.stream.Collectors;
  * @createDate 2026-04-29 15:43:41
  */
 @Service
+@Slf4j
 public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         implements PictureService {
     private final PictureUploadTemplate filePictureUpload;
@@ -123,6 +130,48 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         boolean result = this.saveOrUpdate(picture);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "图片上传失败，数据库操作失败");
         return PictureVO.objToVo(picture);
+    }
+
+    @Override
+    public Integer uploadPictureByBatch(PictureUploadByBatchRequest pictureUploadByBatchRequest, User loginUser) {
+        String searchText = pictureUploadByBatchRequest.getSearchText();
+        // 格式化数量
+        Integer count = pictureUploadByBatchRequest.getCount();
+        ThrowUtils.throwIf(count > 30, ErrorCode.PARAMS_ERROR, "最多 30 条");
+        // 要抓取的地址
+        String asyncUrl = "https://www.bing.com/images/async?q=" + searchText;
+        Document asyncDoc = null;
+        try {
+            asyncDoc = Jsoup.connect(asyncUrl).get();
+        } catch (IOException e) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "页面获取失败");
+        }
+        // 2. 提取所有 a.iusc
+        Elements iuscLinks = asyncDoc.select("a.iusc");
+        ThrowUtils.throwIf(ObjectUtil.isEmpty(iuscLinks), ErrorCode.SYSTEM_ERROR, "页面图片链接获取异常");
+        int urlNumber = 0;
+        for (Element a : iuscLinks) {
+            // 获取里面的m属性，该属性中的murl就是图片的完整路径
+            String mAttr = a.attr("m");
+            if (!mAttr.isEmpty()) {
+                JSONObject obj = JSONUtil.parseObj(mAttr);
+                String finalImageUrl = obj.get("murl").toString();
+                if (StrUtil.isNotBlank(finalImageUrl)) {
+                    PictureUploadRequest pictureUploadRequest = new PictureUploadRequest();
+                    try {
+                        this.uploadPicture(finalImageUrl, pictureUploadRequest, loginUser);
+                    } catch (Exception e) {
+                        log.error("图片上传失败：{}",finalImageUrl);
+                        continue;
+                    }
+                    urlNumber++;
+                }
+            }
+            if (urlNumber == count) {
+                break;
+            }
+        }
+        return urlNumber;
     }
 
     @Override
