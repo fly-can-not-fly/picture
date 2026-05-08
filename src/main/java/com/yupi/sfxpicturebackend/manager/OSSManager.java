@@ -1,15 +1,16 @@
 package com.yupi.sfxpicturebackend.manager;
 
 import cn.hutool.http.HttpUtil;
+import cn.hutool.json.JSONUtil;
 import com.aliyun.oss.OSS;
-import com.aliyun.oss.model.GetObjectRequest;
-import com.aliyun.oss.model.OSSObject;
-import com.aliyun.oss.model.PutObjectRequest;
-import com.aliyun.oss.model.PutObjectResult;
+import com.aliyun.oss.common.utils.BinaryUtil;
+import com.aliyun.oss.common.utils.IOUtils;
+import com.aliyun.oss.model.*;
 import com.yupi.sfxpicturebackend.config.OssClientConfig;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
+import java.io.IOException;
 
 /**
  * @author 孙飞翔
@@ -65,5 +66,35 @@ public class OSSManager {
     public String pictureInfo(String objectName) {
         String url = String.format("https://sfx-picture.oss-cn-beijing.aliyuncs.com/%s?x-oss-process=image/info", objectName);
         return HttpUtil.get(url);
+    }
+
+    /**
+     * 持久化处理图片,将处理后的图片放到原来的bucket
+     * @param sourceImage 原图片完整路径
+     * @param targetImage 转换后图片完整路径
+     * @param styleType 样式转换方式 eg："image/format,webp"
+     * @return 是否转化成功
+     * @throws IOException
+     */
+    public boolean processPermanentPic(String sourceImage,
+                                       String targetImage,
+                                       String styleType) throws IOException {
+        String process = String.format("%s|sys/saveas,o_%s,b_%s", styleType,
+                BinaryUtil.toBase64String(targetImage.getBytes()),
+                BinaryUtil.toBase64String(ossClientConfig.getBucketName().getBytes()));
+        ProcessObjectRequest request = new ProcessObjectRequest(ossClientConfig.getBucketName(), sourceImage, process);
+        GenericResult processResult = ossClient.processObject(request);
+        String json = IOUtils.readStreamAsString(processResult.getResponse().getContent(), "UTF-8");
+        processResult.getResponse().getContent().close();
+        String status = (String) JSONUtil.parseObj(json).get("status");
+        return "OK".equals(status);
+    }
+
+    /**
+     * 删除单个文件
+     * @param objectName 文件完整路径
+     */
+    public void deleteOneFile(String objectName){
+        ossClient.deleteObject(ossClientConfig.getBucketName(), objectName);
     }
 }

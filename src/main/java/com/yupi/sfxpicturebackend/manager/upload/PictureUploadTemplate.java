@@ -9,6 +9,7 @@ import cn.hutool.json.JSONUtil;
 import com.yupi.sfxpicturebackend.config.OssClientConfig;
 import com.yupi.sfxpicturebackend.exception.BusinessException;
 import com.yupi.sfxpicturebackend.exception.ErrorCode;
+import com.yupi.sfxpicturebackend.exception.ThrowUtils;
 import com.yupi.sfxpicturebackend.manager.OSSManager;
 import com.yupi.sfxpicturebackend.model.dto.picture.UploadPictureResult;
 import lombok.extern.slf4j.Slf4j;
@@ -46,10 +47,20 @@ public abstract class PictureUploadTemplate {
 
             // 4. 上传图片到对象存储  
             ossManager.upload(uploadPath, file.getAbsolutePath());
-            String infoString = ossManager.pictureInfo(uploadPath);
+            // 持久化处理图片，格式转为webp
+            String uploadFileNewName = String.format("%s_%s.%s", DateUtil.formatDate(new Date()), uuid,
+                    "webp");
+            String uploadNewPath = String.format("%s/%s", uploadPathPrefix, uploadFileNewName);
+            String styleType = "image/format,webp";
+            boolean result = ossManager.processPermanentPic(uploadPath, uploadNewPath, styleType);
+            ThrowUtils.throwIf(!result,ErrorCode.SYSTEM_ERROR,"图片持久化转换失败");
+            // 删除原来的图片
+            ossManager.deleteOneFile(uploadPath);
+            // 获取处理后的图片信息
+            String infoString = ossManager.pictureInfo(uploadNewPath);
             JSONObject info = JSONUtil.parseObj(infoString);
             // 5. 封装返回结果  
-            return buildResult(originFilename,uploadPath, info);
+            return buildResult(originFilename,uploadNewPath, info);
         } catch (Exception e) {
             log.error("图片上传到对象存储失败", e);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "上传失败");
