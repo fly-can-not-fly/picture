@@ -151,7 +151,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         ThrowUtils.throwIf(ObjectUtil.isEmpty(iuscLinks), ErrorCode.SYSTEM_ERROR, "页面图片链接获取异常");
         int urlNumber = 0;
         for (Element a : iuscLinks) {
-            // 获取里面的m属性，该属性中的murl就是图片的完整路径
+            // 获取里面的m属性，该属性中的murl就是图片的源地址，高清大图
             String mAttr = a.attr("m");
             if (!mAttr.isEmpty()) {
                 JSONObject obj = JSONUtil.parseObj(mAttr);

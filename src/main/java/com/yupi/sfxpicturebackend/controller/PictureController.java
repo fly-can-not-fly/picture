@@ -2,6 +2,8 @@ package com.yupi.sfxpicturebackend.controller;
 
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.yupi.sfxpicturebackend.annotation.AuthCheck;
 import com.yupi.sfxpicturebackend.common.BaseResponse;
 import com.yupi.sfxpicturebackend.common.DeleteRequest;
@@ -19,6 +21,7 @@ import com.yupi.sfxpicturebackend.service.PictureService;
 import com.yupi.sfxpicturebackend.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.util.DigestUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -27,6 +30,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @RestController
@@ -38,6 +42,15 @@ public class PictureController {
 
     @Resource
     private PictureService pictureService;
+
+    private final Cache<String, String> LOCAL_CACHE =
+            Caffeine.newBuilder()
+                    .initialCapacity(1024)
+                    .maximumSize(10000L)
+                    // 缓存 5 分钟移除
+                    .expireAfterWrite(5L, TimeUnit.MINUTES)
+                    .build();
+
 
     /**
      * 上传图片（可重新上传）
@@ -67,6 +80,7 @@ public class PictureController {
 
     /**
      * 管理员批量上传
+     *
      * @param pictureUploadByBatchRequest
      * @param request
      * @return
@@ -198,11 +212,24 @@ public class PictureController {
         ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
         // 普通用户只能看到过审图片
         pictureQueryRequest.setReviewStatus(1);
+        // 构建缓存 key
+        String cacheKey = "listPictureVOByPage:" + current + "-" + size;
+        // 从本地缓存中查询
+        String cachedValue = LOCAL_CACHE.getIfPresent(cacheKey);
+        if (cachedValue != null) {
+            // 如果缓存命中，返回结果
+            Page<PictureVO> cachedPage = JSONUtil.toBean(cachedValue, Page.class);
+            return ResultUtils.success(cachedPage);
+        }
         // 查询数据库
         Page<Picture> picturePage = pictureService.page(new Page<>(current, size),
                 pictureService.getQueryWrapper(pictureQueryRequest));
         // 获取封装类
-        return ResultUtils.success(pictureService.getPictureVOPage(picturePage, request));
+        Page<PictureVO> pictureVOPage = pictureService.getPictureVOPage(picturePage, request);
+        String jsonStr = JSONUtil.toJsonStr(pictureVOPage);
+        // 存入缓存
+        LOCAL_CACHE.put(cacheKey,jsonStr);
+        return ResultUtils.success(pictureVOPage);
     }
 
     /**
