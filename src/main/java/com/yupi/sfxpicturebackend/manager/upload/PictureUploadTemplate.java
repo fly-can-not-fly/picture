@@ -44,7 +44,6 @@ public abstract class PictureUploadTemplate {
         try {
             // 处理文件来源（本地或 URL）  
             processFile(inputSource, file);
-
             // 4. 上传图片到对象存储  
             ossManager.upload(uploadPath, file.getAbsolutePath());
             // 持久化处理图片，格式转为webp
@@ -53,20 +52,27 @@ public abstract class PictureUploadTemplate {
             String uploadNewPath = String.format("%s/%s", uploadPathPrefix, uploadFileNewName);
             String styleType = "image/format,webp";
             boolean result = ossManager.processPermanentPic(uploadPath, uploadNewPath, styleType);
-            ThrowUtils.throwIf(!result,ErrorCode.SYSTEM_ERROR,"图片持久化转换失败");
-            // 删除原来的图片
-            ossManager.deleteOneFile(uploadPath);
+            ThrowUtils.throwIf(!result,ErrorCode.SYSTEM_ERROR,"图片转webp失败");
+            // 上传缩略图
+            String uploadThumbnailFileName = String.format("%s_%s_thumbnailUrl.%s", DateUtil.formatDate(new Date()), uuid,
+                    "webp");
+            String uploadThumbnailPath = String.format("%s/%s", uploadPathPrefix, uploadThumbnailFileName);
+            String styleTypeThumbnail = "image/resize,w_200";
+            boolean result2 = ossManager.processPermanentPic(uploadNewPath, uploadThumbnailPath, styleTypeThumbnail);
+            ThrowUtils.throwIf(!result2,ErrorCode.SYSTEM_ERROR,"图片缩略失败");
             // 获取处理后的图片信息
             String infoString = ossManager.pictureInfo(uploadNewPath);
             JSONObject info = JSONUtil.parseObj(infoString);
             // 5. 封装返回结果  
-            return buildResult(originFilename,uploadNewPath, info);
+            return buildResult(originFilename,uploadNewPath,uploadThumbnailPath, info);
         } catch (Exception e) {
             log.error("图片上传到对象存储失败", e);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "上传失败");
         } finally {
             // 6. 清理临时文件  
             deleteTempFile(file);
+            // 删除原来的图片
+            ossManager.deleteOneFile(uploadPath);
         }
     }
 
@@ -88,7 +94,7 @@ public abstract class PictureUploadTemplate {
     /**
      * 封装返回结果
      */
-    private UploadPictureResult buildResult(String originFilename, String uploadPath, JSONObject info) {
+    private UploadPictureResult buildResult(String originFilename, String uploadPath,String uploadThumbnailPath, JSONObject info) {
         int picWidth = Integer.parseInt(info.getJSONObject("ImageWidth").getStr("value"));
         int picHeight = Integer.parseInt(info.getJSONObject("ImageHeight").getStr("value"));
         double picScale = NumberUtil.round(picWidth * 1.0 / picHeight, 2).doubleValue();
@@ -102,6 +108,7 @@ public abstract class PictureUploadTemplate {
         uploadPictureResult.setPicFormat(format);
         uploadPictureResult.setPicSize(size);
         uploadPictureResult.setUrl(ossClientConfig.getUrlPrefix() + "/" + uploadPath);
+        uploadPictureResult.setThumbnailUrl(ossClientConfig.getUrlPrefix() + "/" + uploadThumbnailPath);
         return uploadPictureResult;
     }
 

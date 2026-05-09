@@ -21,7 +21,7 @@ import com.yupi.sfxpicturebackend.service.PictureService;
 import com.yupi.sfxpicturebackend.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
-import org.springframework.util.DigestUtils;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -109,6 +109,7 @@ public class PictureController {
     }
 
     @PostMapping("/delete")
+    @Transactional(rollbackFor = Exception.class)
     public BaseResponse<Boolean> deletePicture(@RequestBody DeleteRequest deleteRequest
             , HttpServletRequest request) {
         if (deleteRequest == null || deleteRequest.getId() <= 0) {
@@ -126,6 +127,8 @@ public class PictureController {
         // 操作数据库
         boolean result = pictureService.removeById(id);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        // 要删除图片在对象存储上的文件
+        pictureService.deletePictureInOss(oldPicture);
         return ResultUtils.success(true);
     }
 

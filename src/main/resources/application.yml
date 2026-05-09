@@ -2,7 +2,17 @@ server:
   port: 8123
   servlet:
     context-path: /api
+    session:
+      timeout: 2592000
+      cookie:
+        max-age: 2592000
 spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      password:
   application:
     name: sfx-picture-backend
     # 数据库配置
@@ -23,7 +33,7 @@ mybatis-plus:
     # MyBatis 配置
     map-underscore-to-camel-case: false
     # 仅在开发环境打印日志
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+#    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
       logic-delete-field: isDelete # 全局逻辑删除的实体字段名

@@ -55,6 +55,7 @@ public class OSSManager {
 
     /**
      * 获取图片信息
+     * https://image-demo.oss-cn-hangzhou.aliyuncs.com/example.jpg?x-oss-process=image/info
      * {
      * "FileSize": {"value": "330410"},
      * "Format": {"value": "png"},
@@ -64,7 +65,7 @@ public class OSSManager {
      * }
      */
     public String pictureInfo(String objectName) {
-        String url = String.format("https://sfx-picture.oss-cn-beijing.aliyuncs.com/%s?x-oss-process=image/info", objectName);
+        String url = String.format("%s/%s?x-oss-process=image/info", ossClientConfig.getUrlPrefix(),objectName);
         return HttpUtil.get(url);
     }
 

@@ -10,7 +10,7 @@ import lombok.Data;
  * 图片
  * @TableName picture
  */
-@TableName(value ="picture")
+@TableName(value = "picture")
 @Data
 public class Picture implements Serializable {
     /**
@@ -23,7 +23,10 @@ public class Picture implements Serializable {
      * 图片 url
      */
     private String url;
-
+    /**
+     * 缩略图 URL
+     */
+    private String thumbnailUrl;
     /**
      * 图片名称
      */
@@ -114,6 +117,7 @@ public class Picture implements Serializable {
      * 审核时间
      */
     private Date reviewTime;
+
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;

@@ -9,12 +9,11 @@ import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.yupi.sfxpicturebackend.config.OssClientConfig;
 import com.yupi.sfxpicturebackend.exception.BusinessException;
 import com.yupi.sfxpicturebackend.exception.ErrorCode;
 import com.yupi.sfxpicturebackend.exception.ThrowUtils;
-import com.yupi.sfxpicturebackend.manager.FileManager;
+import com.yupi.sfxpicturebackend.manager.OSSManager;
 import com.yupi.sfxpicturebackend.manager.upload.PictureUploadTemplate;
 import com.yupi.sfxpicturebackend.mapper.PictureMapper;
 import com.yupi.sfxpicturebackend.model.dto.picture.*;
@@ -25,7 +24,6 @@ import com.yupi.sfxpicturebackend.model.vo.PictureVO;
 import com.yupi.sfxpicturebackend.model.vo.UserVO;
 import com.yupi.sfxpicturebackend.service.PictureService;
 import com.yupi.sfxpicturebackend.service.UserService;
-import io.swagger.models.auth.In;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -52,11 +50,15 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
     private final PictureUploadTemplate filePictureUpload;
     private final PictureUploadTemplate urlPictureUpload;
     private final UserService userService;
+    private final OSSManager ossManager;
+    private final OssClientConfig ossClientConfig;
 
-    public PictureServiceImpl(PictureUploadTemplate filePictureUpload, PictureUploadTemplate urlPictureUpload, UserService userService) {
+    public PictureServiceImpl(PictureUploadTemplate filePictureUpload, PictureUploadTemplate urlPictureUpload, UserService userService, OSSManager ossManager, OssClientConfig ossClientConfig) {
         this.filePictureUpload = filePictureUpload;
         this.urlPictureUpload = urlPictureUpload;
         this.userService = userService;
+        this.ossManager = ossManager;
+        this.ossClientConfig = ossClientConfig;
     }
 
     @Override
@@ -111,6 +113,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         // 构造要入库的图片信息
         Picture picture = new Picture();
         picture.setUrl(uploadPictureResult.getUrl());
+        picture.setThumbnailUrl(uploadPictureResult.getThumbnailUrl());
         picture.setName(uploadPictureResult.getPicName());
         picture.setPicSize(uploadPictureResult.getPicSize());
         picture.setPicWidth(uploadPictureResult.getPicWidth());
@@ -161,7 +164,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
                     try {
                         this.uploadPicture(finalImageUrl, pictureUploadRequest, loginUser);
                     } catch (Exception e) {
-                        log.error("图片上传失败：{}",finalImageUrl);
+                        log.error("图片上传失败：{}", finalImageUrl);
                         continue;
                     }
                     urlNumber++;
@@ -318,6 +321,20 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         }
     }
 
+    @Override
+    public void deletePictureInOss(Picture oldPicture) {
+        String url = oldPicture.getUrl();
+        String thumbnailUrl = oldPicture.getThumbnailUrl();
+        String bucketUrl = ossClientConfig.getUrlPrefix() + "/";
+        String object1Path = StrUtil.subAfter(url, bucketUrl, false);
+        String object2Path = StrUtil.subAfter(thumbnailUrl, bucketUrl, false);
+        try {
+            ossManager.deleteOneFile(object1Path);
+            ossManager.deleteOneFile(object2Path);
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "删除图片失败");
+        }
+    }
 }
 
 

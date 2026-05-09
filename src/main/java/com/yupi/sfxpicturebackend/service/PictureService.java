@@ -87,4 +87,6 @@ public interface PictureService extends IService<Picture> {
     QueryWrapper<Picture> getQueryWrapper(PictureQueryRequest pictureQueryRequest);
 
     void fillReviewParams(Picture picture, User loginUser);
+
+    void deletePictureInOss(Picture oldPicture);
 }
