@@ -25,7 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.Arrays;
 import java.util.Date;
@@ -37,11 +36,10 @@ import java.util.concurrent.TimeUnit;
 @RequestMapping("/picture")
 public class PictureController {
 
-    @Resource
-    private UserService userService;
+    private final UserService userService;
 
-    @Resource
-    private PictureService pictureService;
+    private final PictureService pictureService;
+
 
     private final Cache<String, String> LOCAL_CACHE =
             Caffeine.newBuilder()
@@ -50,6 +48,11 @@ public class PictureController {
                     // 缓存 5 分钟移除
                     .expireAfterWrite(5L, TimeUnit.MINUTES)
                     .build();
+
+    public PictureController(UserService userService, PictureService pictureService) {
+        this.userService = userService;
+        this.pictureService = pictureService;
+    }
 
 
     /**
@@ -116,19 +119,7 @@ public class PictureController {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         User loginUser = userService.getLoginUser(request);
-        Long id = deleteRequest.getId();
-        // 判断是否存在
-        Picture oldPicture = pictureService.getById(id);
-        ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
-        // 仅本人或者管理员可删除
-        if (!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-        }
-        // 操作数据库
-        boolean result = pictureService.removeById(id);
-        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
-        // 要删除图片在对象存储上的文件
-        pictureService.deletePictureInOss(oldPicture);
+        pictureService.deletePicture(deleteRequest, loginUser);
         return ResultUtils.success(true);
     }
 
@@ -215,6 +206,10 @@ public class PictureController {
         ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
         // 普通用户只能看到过审图片
         pictureQueryRequest.setReviewStatus(1);
+        // 如果没有spaceId说明查询公共图片
+        if (pictureQueryRequest.getSpaceId() == null) {
+            pictureQueryRequest.setNullSpaceId(true);
+        }
         // 构建缓存 key
         String cacheKey = "listPictureVOByPage:" + current + "-" + size;
         // 从本地缓存中查询
@@ -231,7 +226,7 @@ public class PictureController {
         Page<PictureVO> pictureVOPage = pictureService.getPictureVOPage(picturePage, request);
         String jsonStr = JSONUtil.toJsonStr(pictureVOPage);
         // 存入缓存
-        LOCAL_CACHE.put(cacheKey,jsonStr);
+        LOCAL_CACHE.put(cacheKey, jsonStr);
         return ResultUtils.success(pictureVOPage);
     }
 

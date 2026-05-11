@@ -2,6 +2,7 @@ package com.yupi.sfxpicturebackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.yupi.sfxpicturebackend.common.DeleteRequest;
 import com.yupi.sfxpicturebackend.model.dto.picture.PictureQueryRequest;
 import com.yupi.sfxpicturebackend.model.dto.picture.PictureReviewRequest;
 import com.yupi.sfxpicturebackend.model.dto.picture.PictureUploadByBatchRequest;
@@ -87,6 +88,8 @@ public interface PictureService extends IService<Picture> {
     QueryWrapper<Picture> getQueryWrapper(PictureQueryRequest pictureQueryRequest);
 
     void fillReviewParams(Picture picture, User loginUser);
+
+    void deletePicture(DeleteRequest deleteRequest, User loginUser);
 
     void deletePictureInOss(Picture oldPicture);
 }
