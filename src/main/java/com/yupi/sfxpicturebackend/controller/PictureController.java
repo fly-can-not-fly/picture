@@ -213,11 +213,14 @@ public class PictureController {
         // 构建缓存 key
         String cacheKey = "listPictureVOByPage:" + current + "-" + size;
         // 从本地缓存中查询
-        String cachedValue = LOCAL_CACHE.getIfPresent(cacheKey);
-        if (cachedValue != null) {
-            // 如果缓存命中，返回结果
-            Page<PictureVO> cachedPage = JSONUtil.toBean(cachedValue, Page.class);
-            return ResultUtils.success(cachedPage);
+        // 如果是个人空间，则不应该走缓存
+        if (pictureQueryRequest.getSpaceId() == null) {
+            String cachedValue = LOCAL_CACHE.getIfPresent(cacheKey);
+            if (cachedValue != null) {
+                // 如果缓存命中，返回结果
+                Page<PictureVO> cachedPage = JSONUtil.toBean(cachedValue, Page.class);
+                return ResultUtils.success(cachedPage);
+            }
         }
         // 查询数据库
         Page<Picture> picturePage = pictureService.page(new Page<>(current, size),
@@ -225,8 +228,10 @@ public class PictureController {
         // 获取封装类
         Page<PictureVO> pictureVOPage = pictureService.getPictureVOPage(picturePage, request);
         String jsonStr = JSONUtil.toJsonStr(pictureVOPage);
-        // 存入缓存
-        LOCAL_CACHE.put(cacheKey, jsonStr);
+        if (pictureQueryRequest.getSpaceId() == null) {
+            // 存入缓存
+            LOCAL_CACHE.put(cacheKey, jsonStr);
+        }
         return ResultUtils.success(pictureVOPage);
     }
 

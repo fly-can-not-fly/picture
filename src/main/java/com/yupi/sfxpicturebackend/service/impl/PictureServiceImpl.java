@@ -105,16 +105,18 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
                 throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
             }
         }
-        // 上传图片前，校验用户空间是否充足
+        // 如果 spaceId 不为空，说明用户选择了个人空间上传，需要校验空间容量和数量是否充足
         Long spaceId = pictureUploadRequest.getSpaceId();
-        Space space = spaceService.getById(spaceId);
-        ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
-        Long maxSize = space.getMaxSize();
-        Long maxCount = space.getMaxCount();
-        Long totalCount = space.getTotalCount();
-        Long totalSize = space.getTotalSize();
-        if (totalSize >= maxSize || totalCount >= maxCount) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "空间已满，无法上传");
+        if (ObjectUtil.isNotEmpty(spaceId)) {
+            Space space = spaceService.getById(spaceId);
+            ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR, "空间不存在");
+            Long maxSize = space.getMaxSize();
+            Long maxCount = space.getMaxCount();
+            Long totalCount = space.getTotalCount();
+            Long totalSize = space.getTotalSize();
+            if (totalSize >= maxSize || totalCount >= maxCount) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "空间已满，无法上传");
+            }
         }
 
         // 上传图片，得到图片信息
@@ -163,6 +165,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             boolean result = this.saveOrUpdate(picture);
             ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "图片上传失败，数据库操作失败");
             // 更新空间已用大小和数量
+            int i = 1/0;
             boolean updated = spaceService.lambdaUpdate()
                     .setSql("totalSize  = totalSize  + " + picture.getPicSize())
                     .setSql("totalCount = totalCount + 1")
