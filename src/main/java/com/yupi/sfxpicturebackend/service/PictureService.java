@@ -3,14 +3,12 @@ package com.yupi.sfxpicturebackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yupi.sfxpicturebackend.common.DeleteRequest;
-import com.yupi.sfxpicturebackend.model.dto.picture.PictureQueryRequest;
-import com.yupi.sfxpicturebackend.model.dto.picture.PictureReviewRequest;
-import com.yupi.sfxpicturebackend.model.dto.picture.PictureUploadByBatchRequest;
-import com.yupi.sfxpicturebackend.model.dto.picture.PictureUploadRequest;
+import com.yupi.sfxpicturebackend.model.dto.picture.*;
 import com.yupi.sfxpicturebackend.model.entity.Picture;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.yupi.sfxpicturebackend.model.entity.User;
 import com.yupi.sfxpicturebackend.model.vo.PictureVO;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
@@ -60,6 +58,9 @@ public interface PictureService extends IService<Picture> {
             User loginUser
     );
 
+
+    @Transactional(rollbackFor = Exception.class)
+    void editPictureByBatch(PictureEditByBatchRequest pictureEditByBatchRequest, User loginUser);
 
     /**
      * 获取图片包装类（单条）
