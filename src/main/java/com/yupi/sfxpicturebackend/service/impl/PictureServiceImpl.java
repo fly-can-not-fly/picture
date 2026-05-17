@@ -126,7 +126,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         // 如果spaceId为空则上传public，否则上传space
         String uploadPathPrefix;
 
-        if (ObjectUtil.isEmpty(spaceId)) {
+        if (ObjectUtil.isNotEmpty(spaceId)) {
             uploadPathPrefix = String.format("space/%s", spaceId);
         } else {
             uploadPathPrefix = String.format("public/%s", loginUser.getId());

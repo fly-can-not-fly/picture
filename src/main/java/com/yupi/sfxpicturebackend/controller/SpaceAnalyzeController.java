@@ -7,7 +7,7 @@ import com.yupi.sfxpicturebackend.exception.ThrowUtils;
 import com.yupi.sfxpicturebackend.model.dto.space.analyze.*;
 import com.yupi.sfxpicturebackend.model.entity.Space;
 import com.yupi.sfxpicturebackend.model.entity.User;
-import com.yupi.sfxpicturebackend.model.vo.space.*;
+import com.yupi.sfxpicturebackend.model.vo.space_analyze.*;
 import com.yupi.sfxpicturebackend.service.SpaceAnalyzeService;
 import com.yupi.sfxpicturebackend.service.UserService;
 import org.springframework.web.bind.annotation.PostMapping;

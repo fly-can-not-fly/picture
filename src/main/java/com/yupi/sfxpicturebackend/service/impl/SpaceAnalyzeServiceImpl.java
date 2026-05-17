@@ -11,7 +11,7 @@ import com.yupi.sfxpicturebackend.model.dto.space.analyze.*;
 import com.yupi.sfxpicturebackend.model.entity.Picture;
 import com.yupi.sfxpicturebackend.model.entity.Space;
 import com.yupi.sfxpicturebackend.model.entity.User;
-import com.yupi.sfxpicturebackend.model.vo.space.*;
+import com.yupi.sfxpicturebackend.model.vo.space_analyze.*;
 import com.yupi.sfxpicturebackend.service.PictureService;
 import com.yupi.sfxpicturebackend.service.SpaceAnalyzeService;
 import com.yupi.sfxpicturebackend.service.SpaceService;

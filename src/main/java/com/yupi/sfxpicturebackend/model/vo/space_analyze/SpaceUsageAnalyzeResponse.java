@@ -1,4 +1,4 @@
-package com.yupi.sfxpicturebackend.model.vo.space;
+package com.yupi.sfxpicturebackend.model.vo.space_analyze;
 
 import lombok.Data;
 

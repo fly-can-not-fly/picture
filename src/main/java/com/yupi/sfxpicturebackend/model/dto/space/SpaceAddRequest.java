@@ -20,5 +20,7 @@ public class SpaceAddRequest implements Serializable {
      */
     private Integer spaceLevel;
 
+    private Integer spaceType;
+
     private static final long serialVersionUID = 1L;
 }

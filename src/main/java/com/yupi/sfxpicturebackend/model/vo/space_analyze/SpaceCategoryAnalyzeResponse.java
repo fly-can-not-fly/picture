@@ -1,4 +1,4 @@
-package com.yupi.sfxpicturebackend.model.vo.space;
+package com.yupi.sfxpicturebackend.model.vo.space_analyze;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,17 +9,22 @@ import java.io.Serializable;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class SpaceUserAnalyzeResponse implements Serializable {
+public class SpaceCategoryAnalyzeResponse implements Serializable {
 
     /**
-     * 时间区间
+     * 图片分类
      */
-    private String period;
+    private String category;
 
     /**
-     * 上传数量
+     * 图片数量
      */
     private Long count;
+
+    /**
+     * 分类图片总大小
+     */
+    private Long totalSize;
 
     private static final long serialVersionUID = 1L;
 }

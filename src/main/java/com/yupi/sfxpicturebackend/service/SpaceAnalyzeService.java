@@ -3,7 +3,7 @@ package com.yupi.sfxpicturebackend.service;
 import com.yupi.sfxpicturebackend.model.dto.space.analyze.*;
 import com.yupi.sfxpicturebackend.model.entity.Space;
 import com.yupi.sfxpicturebackend.model.entity.User;
-import com.yupi.sfxpicturebackend.model.vo.space.*;
+import com.yupi.sfxpicturebackend.model.vo.space_analyze.*;
 
 import java.util.List;
 

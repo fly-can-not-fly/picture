@@ -1,6 +1,7 @@
 package com.yupi.sfxpicturebackend.model.vo;
 
 import com.yupi.sfxpicturebackend.model.entity.Space;
+import io.swagger.models.auth.In;
 import lombok.Data;
 import org.springframework.beans.BeanUtils;
 
@@ -71,6 +72,8 @@ public class SpaceVO implements Serializable {
      * 创建用户信息
      */
     private UserVO user;
+
+    private Integer spaceType;
 
     private static final long serialVersionUID = 1L;
 
