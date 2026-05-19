@@ -93,4 +93,6 @@ public interface PictureService extends IService<Picture> {
     void deletePicture(DeleteRequest deleteRequest, User loginUser);
 
     void deletePictureInOss(Picture oldPicture);
+
+    void hasPictureEditAuthInSpace(Long pictureId, Long spaceId, User loginUser);
 }

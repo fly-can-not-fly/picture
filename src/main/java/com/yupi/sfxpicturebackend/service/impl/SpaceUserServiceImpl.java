@@ -21,6 +21,7 @@ import com.yupi.sfxpicturebackend.service.SpaceUserService;
 import com.yupi.sfxpicturebackend.mapper.SpaceUserMapper;
 import com.yupi.sfxpicturebackend.service.UserService;
 import org.springframework.beans.BeanUtils;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import javax.servlet.http.HttpServletRequest;
@@ -42,7 +43,7 @@ public class SpaceUserServiceImpl extends ServiceImpl<SpaceUserMapper, SpaceUser
     private final SpaceService spaceService;
     private final UserService userService;
 
-    public SpaceUserServiceImpl(SpaceService spaceService, UserService userService) {
+    public SpaceUserServiceImpl(@Lazy SpaceService spaceService, UserService userService) {
         this.spaceService = spaceService;
         this.userService = userService;
     }
@@ -125,12 +126,12 @@ public class SpaceUserServiceImpl extends ServiceImpl<SpaceUserMapper, SpaceUser
         spaceUserVOList.forEach(spaceUserVo -> {
             Long userId = spaceUserVo.getUserId();
             Long spaceId = spaceUserVo.getSpaceId();
-            if(userListMap.containsKey(userId)){
+            if (userListMap.containsKey(userId)) {
                 User user = userListMap.get(userId).get(0);
                 UserVO userVO = userService.getUserVO(user);
                 spaceUserVo.setUser(userVO);
             }
-            if(spaceListMap.containsKey(spaceId)){
+            if (spaceListMap.containsKey(spaceId)) {
                 Space space = spaceListMap.get(spaceId).get(0);
                 SpaceVO spaceVO = spaceService.getSpaceVO(space, null);
                 spaceUserVo.setSpace(spaceVO);
@@ -139,6 +140,36 @@ public class SpaceUserServiceImpl extends ServiceImpl<SpaceUserMapper, SpaceUser
         return spaceUserVOList;
     }
 
+
+    /**
+     * 获取用户在空间中的角色
+     *
+     * @param spaceId
+     * @param userId
+     * @return
+     */
+    @Override
+    public SpaceRoleEnum getSpaceUserRole(long spaceId, long userId) {
+        SpaceUser spaceUser = this.lambdaQuery()
+                .eq(SpaceUser::getSpaceId, spaceId)
+                .eq(SpaceUser::getUserId, userId)
+                .one();
+        ThrowUtils.throwIf(spaceUser == null, ErrorCode.PARAMS_ERROR, "该空间内不存在该角色");
+        String spaceRole = spaceUser.getSpaceRole();
+        return SpaceRoleEnum.getEnumByValue(spaceRole);
+    }
+
+    /**
+     * 是否是该空间的管理者
+     * @param spaceId
+     * @param userId
+     * @return
+     */
+    @Override
+    public boolean isSpaceAdmin(long spaceId, long userId) {
+        SpaceRoleEnum spaceUserRole = this.getSpaceUserRole(spaceId, userId);
+        return spaceUserRole == SpaceRoleEnum.ADMIN;
+    }
 
     @Override
     public QueryWrapper<SpaceUser> getQueryWrapper(SpaceUserQueryRequest spaceUserQueryRequest) {

@@ -47,6 +47,10 @@ public class SpaceUserController {
     @PostMapping("/add")
     public BaseResponse<Long> addSpaceUser(@RequestBody SpaceUserAddRequest spaceUserAddRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(spaceUserAddRequest == null, ErrorCode.PARAMS_ERROR);
+        // 鉴权
+        User loginUser = userService.getLoginUser(request);
+        boolean spaceAdmin = spaceUserService.isSpaceAdmin(spaceUserAddRequest.getSpaceId(), loginUser.getId());
+        ThrowUtils.throwIf(!spaceAdmin, ErrorCode.NO_AUTH_ERROR);
         long id = spaceUserService.addSpaceUser(spaceUserAddRequest);
         return ResultUtils.success(id);
     }
@@ -60,6 +64,11 @@ public class SpaceUserController {
         if (deleteRequest == null || deleteRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
+        // 鉴权
+        User loginUser = userService.getLoginUser(request);
+        SpaceUser spaceUser = spaceUserService.getById(deleteRequest.getId());
+        boolean spaceAdmin = spaceUserService.isSpaceAdmin(spaceUser.getSpaceId(), loginUser.getId());
+        ThrowUtils.throwIf(!spaceAdmin, ErrorCode.NO_AUTH_ERROR);
         long id = deleteRequest.getId();
         // 判断是否存在
         SpaceUser oldSpaceUser = spaceUserService.getById(id);
@@ -102,7 +111,8 @@ public class SpaceUserController {
      * 编辑成员信息（设置权限）
      */
     @PostMapping("/edit")
-    public BaseResponse<Boolean> editSpaceUser(@RequestBody SpaceUserEditRequest spaceUserEditRequest) {
+    public BaseResponse<Boolean> editSpaceUser(@RequestBody SpaceUserEditRequest spaceUserEditRequest,
+                                               HttpServletRequest request) {
         if (spaceUserEditRequest == null || spaceUserEditRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
@@ -115,6 +125,10 @@ public class SpaceUserController {
         long id = spaceUserEditRequest.getId();
         SpaceUser oldSpaceUser = spaceUserService.getById(id);
         ThrowUtils.throwIf(oldSpaceUser == null, ErrorCode.NOT_FOUND_ERROR);
+        // 鉴权
+        User loginUser = userService.getLoginUser(request);
+        boolean spaceAdmin = spaceUserService.isSpaceAdmin(spaceUser.getSpaceId(), loginUser.getId());
+        ThrowUtils.throwIf(!spaceAdmin, ErrorCode.NO_AUTH_ERROR);
         // 操作数据库
         boolean result = spaceUserService.updateById(spaceUser);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);

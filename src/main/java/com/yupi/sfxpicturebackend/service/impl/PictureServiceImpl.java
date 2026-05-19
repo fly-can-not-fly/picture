@@ -22,10 +22,12 @@ import com.yupi.sfxpicturebackend.model.entity.Picture;
 import com.yupi.sfxpicturebackend.model.entity.Space;
 import com.yupi.sfxpicturebackend.model.entity.User;
 import com.yupi.sfxpicturebackend.model.enums.PictureReviewStatusEnum;
+import com.yupi.sfxpicturebackend.model.enums.SpaceRoleEnum;
 import com.yupi.sfxpicturebackend.model.vo.PictureVO;
 import com.yupi.sfxpicturebackend.model.vo.UserVO;
 import com.yupi.sfxpicturebackend.service.PictureService;
 import com.yupi.sfxpicturebackend.service.SpaceService;
+import com.yupi.sfxpicturebackend.service.SpaceUserService;
 import com.yupi.sfxpicturebackend.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
@@ -35,7 +37,6 @@ import org.jsoup.select.Elements;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -59,15 +60,17 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
     private final OSSManager ossManager;
     private final OssClientConfig ossClientConfig;
     private final SpaceService spaceService;
+    private final SpaceUserService spaceUserService;
     private final TransactionTemplate transactionTemplate;
 
-    public PictureServiceImpl(PictureUploadTemplate filePictureUpload, PictureUploadTemplate urlPictureUpload, UserService userService, OSSManager ossManager, OssClientConfig ossClientConfig, SpaceService spaceService, TransactionTemplate transactionTemplate) {
+    public PictureServiceImpl(PictureUploadTemplate filePictureUpload, PictureUploadTemplate urlPictureUpload, UserService userService, OSSManager ossManager, OssClientConfig ossClientConfig, SpaceService spaceService, SpaceUserService spaceUserService, TransactionTemplate transactionTemplate) {
         this.filePictureUpload = filePictureUpload;
         this.urlPictureUpload = urlPictureUpload;
         this.userService = userService;
         this.ossManager = ossManager;
         this.ossClientConfig = ossClientConfig;
         this.spaceService = spaceService;
+        this.spaceUserService = spaceUserService;
         this.transactionTemplate = transactionTemplate;
     }
 
@@ -93,6 +96,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
     public PictureVO uploadPicture(Object inputSource, PictureUploadRequest pictureUploadRequest, User loginUser) {
         // 校验参数
         ThrowUtils.throwIf(loginUser == null, ErrorCode.NO_AUTH_ERROR);
+        // 判断权限
+        this.hasPictureEditAuthInSpace(null, pictureUploadRequest.getSpaceId(), loginUser);
         // 判断是新增还是删除
         Long pictureId = null;
         if (pictureUploadRequest != null) {
@@ -162,7 +167,6 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             picture.setEditTime(new Date());
         }
         // 开启事务
-        // todo 测试事务能否正常生效
         transactionTemplate.execute(status -> {
             boolean result = this.saveOrUpdate(picture);
             ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "图片上传失败，数据库操作失败");
@@ -226,7 +230,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         Long spaceId = pictureEditByBatchRequest.getSpaceId();
         String category = pictureEditByBatchRequest.getCategory();
         List<String> tags = pictureEditByBatchRequest.getTags();
-
+        // 判断权限
+        this.hasPictureEditAuthInSpace(null, spaceId, loginUser);
         // 1. 校验参数
         ThrowUtils.throwIf(spaceId == null || CollUtil.isEmpty(pictureIdList), ErrorCode.PARAMS_ERROR);
         ThrowUtils.throwIf(loginUser == null, ErrorCode.NO_AUTH_ERROR);
@@ -261,7 +266,7 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         fillPictureWithNameRule(pictureList, nameRule);
 
         // 5. 批量更新
-        PictureServiceImpl self =(PictureServiceImpl) AopContext.currentProxy();
+        PictureServiceImpl self = (PictureServiceImpl) AopContext.currentProxy();
         boolean result = self.updateBatchById(pictureList);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
     }
@@ -450,10 +455,8 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         // 判断是否存在
         Picture oldPicture = this.getById(id);
         ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
-        // 仅本人或者管理员可删除
-        if (!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-        }
+        // 该空间的编辑者或者管理员可删除
+        this.hasPictureEditAuthInSpace(id, oldPicture.getSpaceId(), loginUser);
         // 开启事务
         transactionTemplate.execute(status -> {
             // 操作数据库
@@ -483,6 +486,31 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
             ossManager.deleteOneFile(object2Path);
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "删除图片失败");
+        }
+    }
+
+    /**
+     * 判断用户在空间中是否有编辑，上传权限
+     *
+     * @param pictureId 图片id，null代表判断上传的情况，非null代表编辑
+     * @param spaceId   空间id，null代表公共空间，非null代表个人空间或团队空间
+     * @param loginUser
+     */
+    @Override
+    public void hasPictureEditAuthInSpace(Long pictureId, Long spaceId, User loginUser) {
+        Long userId = loginUser.getId();
+        if (spaceId != null) {
+            // 私有或团队空间，空间的编辑者或管理者可编辑或上传
+            SpaceRoleEnum spaceUserRole = spaceUserService.getSpaceUserRole(spaceId, userId);
+            ThrowUtils.throwIf(spaceUserRole == SpaceRoleEnum.VIEWER, ErrorCode.NO_AUTH_ERROR, "没有权限");
+        } else {
+            // 公共空间上传，不需要权限
+            if (pictureId == null) {
+                return;
+            }
+            // 公共空间仅本人或管理员可编辑
+            boolean b = !pictureId.equals(userId) && !userService.isAdmin(loginUser);
+            ThrowUtils.throwIf(b, ErrorCode.NO_AUTH_ERROR, "没有权限");
         }
     }
 }

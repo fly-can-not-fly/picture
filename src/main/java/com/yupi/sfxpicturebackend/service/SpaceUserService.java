@@ -5,6 +5,7 @@ import com.yupi.sfxpicturebackend.model.dto.space.space_user.SpaceUserAddRequest
 import com.yupi.sfxpicturebackend.model.dto.space.space_user.SpaceUserQueryRequest;
 import com.yupi.sfxpicturebackend.model.entity.SpaceUser;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.yupi.sfxpicturebackend.model.enums.SpaceRoleEnum;
 import com.yupi.sfxpicturebackend.model.vo.SpaceUserVO;
 
 import javax.servlet.http.HttpServletRequest;
@@ -24,6 +25,10 @@ public interface SpaceUserService extends IService<SpaceUser> {
     SpaceUserVO getSpaceUserVO(SpaceUser spaceUser, HttpServletRequest request);
 
     List<SpaceUserVO> getSpaceUserVOList(List<SpaceUser> spaceUserList);
+
+    SpaceRoleEnum getSpaceUserRole(long spaceId, long userId);
+
+    boolean isSpaceAdmin(long spaceId, long userId);
 
     QueryWrapper<SpaceUser> getQueryWrapper(SpaceUserQueryRequest spaceUserQueryRequest);
 }

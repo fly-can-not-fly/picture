@@ -14,10 +14,12 @@ import com.yupi.sfxpicturebackend.exception.ErrorCode;
 import com.yupi.sfxpicturebackend.exception.ThrowUtils;
 import com.yupi.sfxpicturebackend.model.dto.picture.*;
 import com.yupi.sfxpicturebackend.model.entity.Picture;
+import com.yupi.sfxpicturebackend.model.entity.SpaceUser;
 import com.yupi.sfxpicturebackend.model.entity.User;
 import com.yupi.sfxpicturebackend.model.vo.PictureTagCategory;
 import com.yupi.sfxpicturebackend.model.vo.PictureVO;
 import com.yupi.sfxpicturebackend.service.PictureService;
+import com.yupi.sfxpicturebackend.service.SpaceUserService;
 import com.yupi.sfxpicturebackend.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -39,6 +41,7 @@ public class PictureController {
     private final UserService userService;
 
     private final PictureService pictureService;
+    private final SpaceUserService spaceUserService;
 
 
     private final Cache<String, String> LOCAL_CACHE =
@@ -49,9 +52,10 @@ public class PictureController {
                     .expireAfterWrite(5L, TimeUnit.MINUTES)
                     .build();
 
-    public PictureController(UserService userService, PictureService pictureService) {
+    public PictureController(UserService userService, PictureService pictureService, SpaceUserService spaceUserService) {
         this.userService = userService;
         this.pictureService = pictureService;
+        this.spaceUserService = spaceUserService;
     }
 
 
@@ -144,6 +148,10 @@ public class PictureController {
         long id = pictureUpdateRequest.getId();
         Picture oldPicture = pictureService.getById(id);
         ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
+        // 私有，团队空间，不能编辑
+        if (oldPicture.getSpaceId() != null) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "私有，团队空间图片不允许编辑");
+        }
         // 填充审核参数
         User loginUser = userService.getLoginUser(request);
         pictureService.fillReviewParams(picture, loginUser);
@@ -209,6 +217,14 @@ public class PictureController {
         // 如果没有spaceId说明查询公共图片
         if (pictureQueryRequest.getSpaceId() == null) {
             pictureQueryRequest.setNullSpaceId(true);
+        } else {
+            // 如果有spaceId，需要鉴权，判断该用户是否在该空间内
+            User loginUser = userService.getLoginUser(request);
+            boolean exists = spaceUserService.lambdaQuery()
+                    .eq(SpaceUser::getSpaceId, pictureQueryRequest.getSpaceId())
+                    .eq(SpaceUser::getUserId, loginUser.getId())
+                    .exists();
+            ThrowUtils.throwIf(!exists, ErrorCode.NO_AUTH_ERROR, "您没有权限访问该空间的图片");
         }
         // 构建缓存 key
         String cacheKey = "listPictureVOByPage:" + current + "-" + size;
@@ -257,10 +273,8 @@ public class PictureController {
         long id = pictureEditRequest.getId();
         Picture oldPicture = pictureService.getById(id);
         ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
-        // 仅本人或管理员可编辑
-        if (!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
-            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-        }
+        // 判断该空间下该用户是否有权限
+        pictureService.hasPictureEditAuthInSpace(id, picture.getSpaceId(), loginUser);
         // 填充审核参数
         pictureService.fillReviewParams(picture, loginUser);
         // 操作数据库
