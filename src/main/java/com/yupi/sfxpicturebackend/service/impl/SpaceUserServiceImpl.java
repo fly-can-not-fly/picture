@@ -3,6 +3,7 @@ package com.yupi.sfxpicturebackend.service.impl;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yupi.sfxpicturebackend.exception.ErrorCode;
@@ -53,6 +54,11 @@ public class SpaceUserServiceImpl extends ServiceImpl<SpaceUserMapper, SpaceUser
         // 1. 填充参数默认值
         SpaceUser spaceUser = new SpaceUser();
         BeanUtils.copyProperties(spaceUserAddRequest, spaceUser);
+        // 如果没有传空间角色，则默认为普通成员
+        String spaceRole = spaceUserAddRequest.getSpaceRole();
+        if (StrUtil.isBlank(spaceRole)){
+            spaceUser.setSpaceRole(SpaceRoleEnum.VIEWER.getValue());
+        }
         // 2. 校验参数
         this.validSpaceUser(spaceUser, true);
         // 3. 插入数据
@@ -81,27 +87,6 @@ public class SpaceUserServiceImpl extends ServiceImpl<SpaceUserMapper, SpaceUser
         ThrowUtils.throwIf(spaceRole == null || spaceRole.isEmpty(), ErrorCode.PARAMS_ERROR, "空间角色不能为空");
         SpaceRoleEnum enumByValue = SpaceRoleEnum.getEnumByValue(spaceRole);
         ThrowUtils.throwIf(enumByValue == null, ErrorCode.PARAMS_ERROR, "空间角色不合法");
-    }
-
-    @Override
-    public SpaceUserVO getSpaceUserVO(SpaceUser spaceUser, HttpServletRequest request) {
-        // 对象转封装类
-        SpaceUserVO spaceUserVO = SpaceUserVO.objToVo(spaceUser);
-        // 关联查询用户信息
-        Long userId = spaceUser.getUserId();
-        if (userId != null && userId > 0) {
-            User user = userService.getById(userId);
-            UserVO userVO = userService.getUserVO(user);
-            spaceUserVO.setUser(userVO);
-        }
-        // 关联查询空间信息
-        Long spaceId = spaceUser.getSpaceId();
-        if (spaceId != null && spaceId > 0) {
-            Space space = spaceService.getById(spaceId);
-            SpaceVO spaceVO = spaceService.getSpaceVO(space, request);
-            spaceUserVO.setSpace(spaceVO);
-        }
-        return spaceUserVO;
     }
 
     @Override

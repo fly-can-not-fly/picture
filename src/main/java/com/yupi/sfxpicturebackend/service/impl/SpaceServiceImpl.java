@@ -16,7 +16,6 @@ import com.yupi.sfxpicturebackend.model.entity.Space;
 import com.yupi.sfxpicturebackend.model.entity.User;
 import com.yupi.sfxpicturebackend.model.enums.SpaceLevelEnum;
 import com.yupi.sfxpicturebackend.model.enums.SpaceRoleEnum;
-import com.yupi.sfxpicturebackend.model.enums.SpaceTypeEnum;
 import com.yupi.sfxpicturebackend.model.vo.SpaceVO;
 import com.yupi.sfxpicturebackend.model.vo.UserVO;
 import com.yupi.sfxpicturebackend.service.SpaceService;
@@ -63,6 +62,7 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
         this.fillSpaceBySpaceLevel(space);
         // 2. 校验参数
         this.validSpace(space, true);
+        Integer spaceType = spaceAddRequest.getSpaceType();
         // 3. 校验权限，非管理员只能创建普通级别的空间
         Long userId = loginUser.getId();
         space.setUserId(userId);
@@ -76,11 +76,11 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
                 // 判断是否已有空间
                 boolean exists = this.lambdaQuery()
                         .eq(Space::getUserId, userId)
-                        .eq(Space::getSpaceType, SpaceTypeEnum.PERSONAL.getValue())
+                        .eq(Space::getSpaceType, spaceType)
                         .exists();
                 // 如果已有空间，就不能再创建
-                ThrowUtils.throwIf(exists, ErrorCode.OPERATION_ERROR, "每个用户仅能有一个私有空间");
-               // 修改了两个表，使用事务
+                ThrowUtils.throwIf(exists, ErrorCode.OPERATION_ERROR, "每个用户仅能有一个私有空间和团队空间");
+                // 修改了两个表，使用事务
                 transactionTemplate.execute(status -> {
                     // 创建
                     boolean result = this.save(space);
@@ -118,7 +118,7 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
             if (spaceLevel == null) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "空间级别不能为空");
             }
-            if ( spaceType == null) {
+            if (spaceType == null) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "空间类型不能为空");
             }
         }
@@ -133,7 +133,7 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
     }
 
     @Override
-    public SpaceVO getSpaceVO(Space space, HttpServletRequest request) {
+    public SpaceVO getSpaceVO(Space space, Long loginUserId) {
         // 对象转封装类
         SpaceVO spaceVO = SpaceVO.objToVo(space);
         // 关联查询用户信息
@@ -142,6 +142,11 @@ public class SpaceServiceImpl extends ServiceImpl<SpaceMapper, Space>
             User user = userService.getById(userId);
             UserVO userVO = userService.getUserVO(user);
             spaceVO.setUser(userVO);
+        }
+        if (loginUserId != null) {
+            // 查询登陆用户对该空间的角色
+            String spaceRole = spaceUserService.getSpaceUserRole(space.getId(), loginUserId).getValue();
+            spaceVO.setLoginUserRole(spaceRole);
         }
         return spaceVO;
     }

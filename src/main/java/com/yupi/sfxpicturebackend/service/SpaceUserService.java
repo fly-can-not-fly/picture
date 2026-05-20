@@ -22,8 +22,6 @@ public interface SpaceUserService extends IService<SpaceUser> {
 
     void validSpaceUser(SpaceUser spaceUser, boolean add);
 
-    SpaceUserVO getSpaceUserVO(SpaceUser spaceUser, HttpServletRequest request);
-
     List<SpaceUserVO> getSpaceUserVOList(List<SpaceUser> spaceUserList);
 
     SpaceRoleEnum getSpaceUserRole(long spaceId, long userId);
